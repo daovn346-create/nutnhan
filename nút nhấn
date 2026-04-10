@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart IoT Pro</title>
+
+<style>
+/* Reset & Nền */
+body {
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #2d3436;
+}
+
+/* THIẾT KẾ GLASSMORPHISM CARD */
+#card {
+    width: 340px;
+    padding: 30px;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* NGÀY THÁNG */
+#date {
+    font-size: 13px;
+    font-weight: 600;
+    color: #636e72;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+/* ĐỒNG HỒ */
+#clock {
+    font-size: 54px;
+    font-weight: 800;
+    margin: 10px 0;
+    background: -webkit-linear-gradient(#4834d4, #686de0);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* THÔNG SỐ CẢM BIẾN */
+#info {
+    display: flex;
+    justify-content: space-around;
+    margin: 25px 0;
+    padding: 15px;
+    background: #f1f2f6;
+    border-radius: 20px;
+}
+
+.value {
+    font-size: 18px;
+    font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.value span {
+    font-size: 12px;
+    color: #a4b0be;
+    font-weight: normal;
+}
+
+/* TRẠNG THÁI LED */
+#statusLed {
+    margin: 20px 0;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 8px 15px;
+    border-radius: 50px;
+    display: inline-block;
+    transition: all 0.3s ease;
+}
+
+.status-on { background: #e1f5fe; color: #0288d1; }
+.status-off { background: #ffebee; color: #d32f2f; }
+
+/* NÚT ĐIỀU KHIỂN */
+#control {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.btn {
+    flex: 1;
+    padding: 12px 0;
+    border: none;
+    border-radius: 15px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    color: white;
+    text-transform: uppercase;
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+#turnOn { 
+    background: linear-gradient(to right, #00b09b, #96c93d);
+    box-shadow: 0 4px 15px rgba(0, 176, 155, 0.3);
+}
+
+#turnOff { 
+    background: linear-gradient(to right, #eb3349, #f45c43);
+    box-shadow: 0 4px 15px rgba(235, 51, 73, 0.3);
+}
+</style>
+</head>
+
+<body>
+
+<div id="card">
+    <div id="date">Thứ Sáu, 10/04/2026</div>
+    <div id="clock">00:00</div>
+
+    <div id="info">
+        <div class="value">
+            <span id="nhietDo">-- °C</span>
+            <span>Nhiệt độ</span>
+        </div>
+        <div style="width: 1px; background: #dfe4ea;"></div>
+        <div class="value">
+            <span id="doAm">-- %</span>
+            <span>Độ ẩm</span>
+        </div>
+    </div>
+
+    <div id="statusLed" class="status-off">Đang kết nối...</div>
+
+    <div id="control">
+        <button id="turnOn" class="btn">Bật</button>
+        <button id="turnOff" class="btn">Tắt</button>
+    </div>
+</div>
+
+<script src="https://www.unpkg.com/@eohjsc/era-widget@1.1.3/src/index.js"></script>
+
+<script>
+// Logic giữ nguyên như cũ của bạn
+setInterval(() => {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    document.getElementById("clock").innerText = h + ":" + m;
+}, 1000);
+
+const temp = document.getElementById('nhietDo');
+const humi = document.getElementById('doAm');
+const turnOn = document.getElementById('turnOn');
+const turnOff = document.getElementById('turnOff');
+const statusLed = document.getElementById('statusLed');
+
+let configTemp = null, configHumi = null, configLed = null, actions = [], ledState = null;
+
+const eraWidget = new EraWidget();
+eraWidget.init({
+  needRealtimeConfigs: true,
+  needActions: true,
+  maxRealtimeConfigsCount: 3,
+  maxActionsCount: 2,
+
+  onConfiguration: (config) => {
+    if (!config || !config.realtime_configs) return;
+    configTemp = config.realtime_configs[0] || null;
+    configHumi = config.realtime_configs[1] || null;
+    configLed  = config.realtime_configs[2] || null;
+    actions = config.actions || [];
+  },
+
+  onValues: (values) => {
+    if (!values) return;
+    if (configTemp && values[configTemp.id]) temp.innerText = values[configTemp.id].value + " °C";
+    if (configHumi && values[configHumi.id]) humi.innerText = values[configHumi.id].value + " %";
+    if (configLed && values[configLed.id]) {
+      const newLed = values[configLed.id].value;
+      if (ledState !== newLed) {
+        ledState = newLed;
+        statusLed.innerText = newLed == 1 ? "💡 Đèn đang bật" : "🔌 Đèn đang tắt";
+        statusLed.className = newLed == 1 ? "status-on" : "status-off";
+      }
+    }
+  }
+});
+
+turnOn.addEventListener("click", () => { if (actions[0]) eraWidget.triggerAction(actions[0].action, null); });
+turnOff.addEventListener("click", () => { if (actions[1]) eraWidget.triggerAction(actions[1].action, null); });
+</script>
+
+</body>
+</html>
